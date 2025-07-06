@@ -1,0 +1,832 @@
+"""
+Ventana de Consulta de Llamadas - Sistema de Emergencias
+"""
+
+import customtkinter as ctk
+from tkinter import messagebox, ttk
+import tkinter as tk
+from datetime import datetime, timedelta
+import webbrowser
+
+class ConsultaLlamadasWindow(ctk.CTkToplevel):
+    def __init__(self, app, parent):
+        super().__init__(parent)
+        
+        self.app = app
+        self.parent = parent
+        
+        self.setup_window()
+        self.create_widgets()
+        self.load_data()
+        
+    def setup_window(self):
+        """Configura la ventana"""
+        self.title("Consulta de Llamadas")
+        self.geometry("1200x800")
+        self.resizable(True, True)
+        
+        # Hacer modal
+        self.transient(self.parent)
+        self.grab_set()
+        
+        # Configurar grid
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        
+    def create_widgets(self):
+        """Crea la interfaz"""
+        
+        # Frame de filtros
+        self.create_filters_frame()
+        
+        # Frame de resultados
+        self.create_results_frame()
+        
+        # Frame de acciones
+        self.create_actions_frame()
+        
+    def create_filters_frame(self):
+        """Crea el frame de filtros de búsqueda"""
+        
+        filters_frame = ctk.CTkFrame(self)
+        filters_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        filters_frame.grid_columnconfigure((1, 3, 5), weight=1)
+        
+        # Título
+        title_label = ctk.CTkLabel(
+            filters_frame,
+            text="🔍 FILTROS DE BÚSQUEDA",
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        title_label.grid(row=0, column=0, columnspan=6, padx=20, pady=(15, 20))
+        
+        # Fecha desde
+        ctk.CTkLabel(filters_frame, text="Desde:").grid(row=1, column=0, padx=(20, 10), pady=10, sticky="w")
+        self.fecha_desde_entry = ctk.CTkEntry(filters_frame, placeholder_text="DD/MM/YYYY")
+        self.fecha_desde_entry.grid(row=1, column=1, padx=(0, 20), pady=10, sticky="ew")
+        
+        # Fecha hasta
+        ctk.CTkLabel(filters_frame, text="Hasta:").grid(row=1, column=2, padx=(20, 10), pady=10, sticky="w")
+        self.fecha_hasta_entry = ctk.CTkEntry(filters_frame, placeholder_text="DD/MM/YYYY")
+        self.fecha_hasta_entry.grid(row=1, column=3, padx=(0, 20), pady=10, sticky="ew")
+        
+        # Tipo de emergencia
+        ctk.CTkLabel(filters_frame, text="Tipo:").grid(row=1, column=4, padx=(20, 10), pady=10, sticky="w")
+        self.tipo_combo = ctk.CTkComboBox(filters_frame, values=[], state="readonly")
+        self.tipo_combo.grid(row=1, column=5, padx=(0, 20), pady=10, sticky="ew")
+        
+        # Estado
+        ctk.CTkLabel(filters_frame, text="Estado:").grid(row=2, column=0, padx=(20, 10), pady=10, sticky="w")
+        self.estado_combo = ctk.CTkComboBox(
+            filters_frame,
+            values=["Todos", "Activa", "Despachada", "En Curso", "Finalizada", "Cancelada"],
+            state="readonly"
+        )
+        self.estado_combo.set("Todos")
+        self.estado_combo.grid(row=2, column=1, padx=(0, 20), pady=10, sticky="ew")
+        
+        # Número de llamada
+        ctk.CTkLabel(filters_frame, text="Nº Llamada:").grid(row=2, column=2, padx=(20, 10), pady=10, sticky="w")
+        self.numero_entry = ctk.CTkEntry(filters_frame, placeholder_text="EM20241201...")
+        self.numero_entry.grid(row=2, column=3, padx=(0, 20), pady=10, sticky="ew")
+        
+        # DNI/Teléfono
+        ctk.CTkLabel(filters_frame, text="DNI/Tel:").grid(row=2, column=4, padx=(20, 10), pady=10, sticky="w")
+        self.dni_telefono_entry = ctk.CTkEntry(filters_frame, placeholder_text="DNI o teléfono")
+        self.dni_telefono_entry.grid(row=2, column=5, padx=(0, 20), pady=10, sticky="ew")
+        
+        # Botones de filtro
+        buttons_frame = ctk.CTkFrame(filters_frame)
+        buttons_frame.grid(row=3, column=0, columnspan=6, padx=20, pady=(10, 15), sticky="ew")
+        buttons_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        
+        # Botón buscar
+        search_btn = ctk.CTkButton(
+            buttons_frame,
+            text="🔍 Buscar",
+            command=self.buscar_llamadas,
+            fg_color=("blue", "darkblue")
+        )
+        search_btn.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        
+        # Botón limpiar
+        clear_btn = ctk.CTkButton(
+            buttons_frame,
+            text="🗑️ Limpiar",
+            command=self.limpiar_filtros,
+            fg_color=("gray", "darkgray")
+        )
+        clear_btn.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        
+        # Botón hoy
+        today_btn = ctk.CTkButton(
+            buttons_frame,
+            text="📅 Hoy",
+            command=self.filtrar_hoy,
+            fg_color=("green", "darkgreen")
+        )
+        today_btn.grid(row=0, column=2, padx=10, pady=10, sticky="ew")
+        
+        # Botón última semana
+        week_btn = ctk.CTkButton(
+            buttons_frame,
+            text="📊 Última Semana",
+            command=self.filtrar_semana,
+            fg_color=("orange", "darkorange")
+        )
+        week_btn.grid(row=0, column=3, padx=10, pady=10, sticky="ew")
+        
+    def create_results_frame(self):
+        """Crea el frame de resultados"""
+        
+        results_frame = ctk.CTkFrame(self)
+        results_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        results_frame.grid_columnconfigure(0, weight=1)
+        results_frame.grid_rowconfigure(1, weight=1)
+        
+        # Título de resultados
+        results_title = ctk.CTkLabel(
+            results_frame,
+            text="📋 RESULTADOS",
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        results_title.grid(row=0, column=0, padx=20, pady=(15, 10))
+        
+        # Treeview
+        self.create_treeview(results_frame)
+        
+    def create_treeview(self, parent):
+        """Crea el treeview para mostrar llamadas"""
+        
+        # Frame para el treeview
+        tree_frame = tk.Frame(parent)
+        tree_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        tree_frame.grid_columnconfigure(0, weight=1)
+        tree_frame.grid_rowconfigure(0, weight=1)
+        
+        # Configurar estilo
+        style = ttk.Style()
+        style.theme_use('clam')
+        
+        # Treeview
+        columns = ('Número', 'Fecha/Hora', 'Tipo', 'Solicitante', 'Teléfono', 'Dirección', 'Estado', 'Prioridad')
+        self.calls_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
+        
+        # Configurar columnas
+        column_widths = {
+            'Número': 120,
+            'Fecha/Hora': 130,
+            'Tipo': 120,
+            'Solicitante': 150,
+            'Teléfono': 100,
+            'Dirección': 200,
+            'Estado': 100,
+            'Prioridad': 80
+        }
+        
+        for col in columns:
+            self.calls_tree.heading(col, text=col)
+            self.calls_tree.column(col, width=column_widths.get(col, 100))
+        
+        # Scrollbars
+        v_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.calls_tree.yview)
+        h_scrollbar = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.calls_tree.xview)
+        
+        self.calls_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        # Grid
+        self.calls_tree.grid(row=0, column=0, sticky="nsew")
+        v_scrollbar.grid(row=0, column=1, sticky="ns")
+        h_scrollbar.grid(row=1, column=0, sticky="ew")
+        
+        # Binding para doble click
+        self.calls_tree.bind('<Double-1>', self.on_item_double_click)
+        
+    def create_actions_frame(self):
+        """Crea el frame de acciones"""
+        
+        actions_frame = ctk.CTkFrame(self)
+        actions_frame.grid(row=2, column=0, padx=20, pady=(10, 20), sticky="ew")
+        actions_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
+        
+        # Ver detalles
+        details_btn = ctk.CTkButton(
+            actions_frame,
+            text="👁️ Ver Detalles",
+            command=self.ver_detalles,
+            fg_color=("blue", "darkblue")
+        )
+        details_btn.grid(row=0, column=0, padx=10, pady=15, sticky="ew")
+        
+        # Ubicar en mapa
+        map_btn = ctk.CTkButton(
+            actions_frame,
+            text="🗺️ Ubicar en Mapa",
+            command=self.ubicar_en_mapa,
+            fg_color=("green", "darkgreen")
+        )
+        map_btn.grid(row=0, column=1, padx=10, pady=15, sticky="ew")
+        
+        # Exportar
+        export_btn = ctk.CTkButton(
+            actions_frame,
+            text="📤 Exportar",
+            command=self.exportar_resultados,
+            fg_color=("orange", "darkorange")
+        )
+        export_btn.grid(row=0, column=2, padx=10, pady=15, sticky="ew")
+        
+        # Imprimir
+        print_btn = ctk.CTkButton(
+            actions_frame,
+            text="🖨️ Imprimir",
+            command=self.imprimir_resultados,
+            fg_color=("purple", "darkmagenta")
+        )
+        print_btn.grid(row=0, column=3, padx=10, pady=15, sticky="ew")
+        
+        # Cerrar
+        close_btn = ctk.CTkButton(
+            actions_frame,
+            text="❌ Cerrar",
+            command=self.destroy,
+            fg_color=("gray", "darkgray")
+        )
+        close_btn.grid(row=0, column=4, padx=10, pady=15, sticky="ew")
+        
+    def load_data(self):
+        """Carga datos iniciales"""
+        try:
+            # Cargar tipos de emergencia
+            tipos = self.app.db_manager.fetch_all("""
+                SELECT nombre FROM tipos_emergencia ORDER BY nombre
+            """)
+            tipo_values = ["Todos"] + [tipo[0] for tipo in tipos]
+            self.tipo_combo.configure(values=tipo_values)
+            self.tipo_combo.set("Todos")
+            
+            # Establecer fechas por defecto (última semana)
+            hoy = datetime.now()
+            hace_semana = hoy - timedelta(days=7)
+            
+            self.fecha_desde_entry.insert(0, hace_semana.strftime("%d/%m/%Y"))
+            self.fecha_hasta_entry.insert(0, hoy.strftime("%d/%m/%Y"))
+            
+            # Cargar llamadas iniciales
+            self.buscar_llamadas()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error cargando datos: {e}")
+    
+    def buscar_llamadas(self):
+        """Busca llamadas según los filtros"""
+        try:
+            # Limpiar treeview
+            for item in self.calls_tree.get_children():
+                self.calls_tree.delete(item)
+            
+            # Construir query
+            query = """
+                SELECT l.numero_llamada, l.fecha_hora, te.nombre as tipo_emergencia,
+                       COALESCE(v.nombre || ' ' || v.apellido, 'No especificado') as solicitante,
+                       COALESCE(v.telefono, 'No especificado') as telefono,
+                       l.direccion_completa, l.estado,
+                       CASE 
+                           WHEN tm.nivel_prioridad IS NOT NULL THEN tm.nivel_prioridad
+                           WHEN tb.nivel_prioridad IS NOT NULL THEN tb.nivel_prioridad
+                           WHEN td.nivel_prioridad IS NOT NULL THEN td.nivel_prioridad
+                           WHEN ts.nivel_prioridad IS NOT NULL THEN ts.nivel_prioridad
+                           ELSE 5
+                       END as prioridad,
+                       l.id
+                FROM llamadas l
+                JOIN tipos_emergencia te ON l.tipo_emergencia_id = te.id
+                LEFT JOIN vecinos v ON l.vecino_id = v.id
+                LEFT JOIN triaje_medico tm ON l.id = tm.llamada_id
+                LEFT JOIN triaje_bomberos tb ON l.id = tb.llamada_id
+                LEFT JOIN triaje_defensa_civil td ON l.id = td.llamada_id
+                LEFT JOIN triaje_seguridad ts ON l.id = ts.llamada_id
+                WHERE 1=1
+            """
+            
+            params = []
+            
+            # Filtro por fecha
+            if self.fecha_desde_entry.get():
+                try:
+                    fecha_desde = datetime.strptime(self.fecha_desde_entry.get(), "%d/%m/%Y")
+                    query += " AND DATE(l.fecha_hora) >= ?"
+                    params.append(fecha_desde.strftime("%Y-%m-%d"))
+                except ValueError:
+                    pass
+            
+            if self.fecha_hasta_entry.get():
+                try:
+                    fecha_hasta = datetime.strptime(self.fecha_hasta_entry.get(), "%d/%m/%Y")
+                    query += " AND DATE(l.fecha_hora) <= ?"
+                    params.append(fecha_hasta.strftime("%Y-%m-%d"))
+                except ValueError:
+                    pass
+            
+            # Filtro por tipo
+            if self.tipo_combo.get() and self.tipo_combo.get() != "Todos":
+                query += " AND te.nombre = ?"
+                params.append(self.tipo_combo.get())
+            
+            # Filtro por estado
+            if self.estado_combo.get() and self.estado_combo.get() != "Todos":
+                query += " AND l.estado = ?"
+                params.append(self.estado_combo.get().lower())
+            
+            # Filtro por número de llamada
+            if self.numero_entry.get():
+                query += " AND l.numero_llamada LIKE ?"
+                params.append(f"%{self.numero_entry.get()}%")
+            
+            # Filtro por DNI/Teléfono
+            if self.dni_telefono_entry.get():
+                query += " AND (v.dni LIKE ? OR v.telefono LIKE ? OR v.telefono_alternativo LIKE ?)"
+                search_term = f"%{self.dni_telefono_entry.get()}%"
+                params.extend([search_term, search_term, search_term])
+            
+            # Ordenar por fecha descendente
+            query += " ORDER BY l.fecha_hora DESC"
+            
+            # Ejecutar query
+            llamadas = self.app.db_manager.fetch_all(query, params)
+            
+            # Llenar treeview
+            for llamada in llamadas:
+                fecha_hora = datetime.strptime(llamada[1], '%Y-%m-%d %H:%M:%S')
+                fecha_str = fecha_hora.strftime('%d/%m/%Y %H:%M')
+                
+                # Determinar color según prioridad
+                prioridad = llamada[7]
+                if prioridad == 1:
+                    prioridad_text = "🔴 Crítica"
+                elif prioridad == 2:
+                    prioridad_text = "🟠 Alta"
+                elif prioridad == 3:
+                    prioridad_text = "🟡 Media"
+                else:
+                    prioridad_text = "🟢 Baja"
+                
+                # Truncar dirección si es muy larga
+                direccion = llamada[5]
+                if len(direccion) > 40:
+                    direccion = direccion[:37] + "..."
+                
+                self.calls_tree.insert('', 'end', values=(
+                    llamada[0],  # Número
+                    fecha_str,   # Fecha/Hora
+                    llamada[2],  # Tipo
+                    llamada[3],  # Solicitante
+                    llamada[4],  # Teléfono
+                    direccion,   # Dirección
+                    llamada[6].title(),  # Estado
+                    prioridad_text       # Prioridad
+                ), tags=(llamada[8],))  # ID como tag
+            
+            # Actualizar contador
+            total = len(llamadas)
+            self.update_results_title(total)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error buscando llamadas: {e}")
+    
+    def update_results_title(self, total):
+        """Actualiza el título con el total de resultados"""
+        results_title = self.nametowidget(f"{self.winfo_children()[1].winfo_children()[0]}")
+        results_title.configure(text=f"📋 RESULTADOS ({total} llamadas encontradas)")
+    
+    def limpiar_filtros(self):
+        """Limpia todos los filtros"""
+        self.fecha_desde_entry.delete(0, 'end')
+        self.fecha_hasta_entry.delete(0, 'end')
+        self.tipo_combo.set("Todos")
+        self.estado_combo.set("Todos")
+        self.numero_entry.delete(0, 'end')
+        self.dni_telefono_entry.delete(0, 'end')
+    
+    def filtrar_hoy(self):
+        """Filtra llamadas de hoy"""
+        hoy = datetime.now().strftime("%d/%m/%Y")
+        self.fecha_desde_entry.delete(0, 'end')
+        self.fecha_desde_entry.insert(0, hoy)
+        self.fecha_hasta_entry.delete(0, 'end')
+        self.fecha_hasta_entry.insert(0, hoy)
+        self.buscar_llamadas()
+    
+    def filtrar_semana(self):
+        """Filtra llamadas de la última semana"""
+        hoy = datetime.now()
+        hace_semana = hoy - timedelta(days=7)
+        
+        self.fecha_desde_entry.delete(0, 'end')
+        self.fecha_desde_entry.insert(0, hace_semana.strftime("%d/%m/%Y"))
+        self.fecha_hasta_entry.delete(0, 'end')
+        self.fecha_hasta_entry.insert(0, hoy.strftime("%d/%m/%Y"))
+        self.buscar_llamadas()
+    
+    def on_item_double_click(self, event):
+        """Maneja el doble click en un item"""
+        self.ver_detalles()
+    
+    def ver_detalles(self):
+        """Muestra los detalles de la llamada seleccionada"""
+        selection = self.calls_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Debe seleccionar una llamada")
+            return
+        
+        # Obtener ID de la llamada desde las tags
+        item = self.calls_tree.item(selection[0])
+        llamada_id = item['tags'][0]
+        
+        # Abrir ventana de detalles
+        DetallesLlamadaWindow(self.app, self, llamada_id)
+    
+    def ubicar_en_mapa(self):
+        """Ubica la llamada seleccionada en Google Maps"""
+        selection = self.calls_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Debe seleccionar una llamada")
+            return
+        
+        try:
+            # Obtener dirección de la llamada
+            item = self.calls_tree.item(selection[0])
+            direccion = item['values'][5]  # Dirección está en la posición 5
+            
+            # Abrir Google Maps
+            url = f"https://www.google.com/maps/search/{direccion.replace(' ', '+')},+Villa+Allende,+Córdoba,+Argentina"
+            webbrowser.open(url)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error abriendo mapa: {e}")
+    
+    def exportar_resultados(self):
+        """Exporta los resultados a Excel"""
+        try:
+            import pandas as pd
+            from tkinter import filedialog
+            
+            # Obtener datos del treeview
+            data = []
+            for item in self.calls_tree.get_children():
+                values = self.calls_tree.item(item)['values']
+                data.append(values)
+            
+            if not data:
+                messagebox.showwarning("Advertencia", "No hay datos para exportar")
+                return
+            
+            # Crear DataFrame
+            columns = ['Número', 'Fecha/Hora', 'Tipo', 'Solicitante', 'Teléfono', 'Dirección', 'Estado', 'Prioridad']
+            df = pd.DataFrame(data, columns=columns)
+            
+            # Seleccionar archivo
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+                title="Guardar exportación"
+            )
+            
+            if filename:
+                df.to_excel(filename, index=False)
+                messagebox.showinfo("Éxito", f"Datos exportados a {filename}")
+                
+        except ImportError:
+            messagebox.showerror("Error", "Pandas no está instalado. No se puede exportar a Excel.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error exportando: {e}")
+    
+    def imprimir_resultados(self):
+        """Imprime los resultados"""
+        try:
+            # Crear HTML para imprimir
+            html_content = self.generate_print_html()
+            
+            # Guardar en archivo temporal
+            import tempfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+                f.write(html_content)
+                temp_file = f.name
+            
+            # Abrir en navegador para imprimir
+            webbrowser.open(f"file://{temp_file}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error preparando impresión: {e}")
+    
+    def generate_print_html(self):
+        """Genera HTML para impresión"""
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Reporte de Llamadas - Sistema de Emergencias Villa Allende</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #2c3e50; text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #34495e; color: white; }
+                tr:nth-child(even) { background-color: #f2f2f2; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Sistema de Emergencias Villa Allende</h1>
+                <h2>Reporte de Llamadas</h2>
+                <p>Generado el: """ + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + """</p>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha/Hora</th>
+                        <th>Tipo</th>
+                        <th>Solicitante</th>
+                        <th>Teléfono</th>
+                        <th>Dirección</th>
+                        <th>Estado</th>
+                        <th>Prioridad</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        # Agregar filas de datos
+        for item in self.calls_tree.get_children():
+            values = self.calls_tree.item(item)['values']
+            html += "<tr>"
+            for value in values:
+                html += f"<td>{value}</td>"
+            html += "</tr>"
+        
+        html += """
+                </tbody>
+            </table>
+            
+            <div class="footer">
+                <p>Sistema de Emergencias Villa Allende - Córdoba, Argentina</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html
+
+
+class DetallesLlamadaWindow(ctk.CTkToplevel):
+    """Ventana para mostrar detalles completos de una llamada"""
+    
+    def __init__(self, app, parent, llamada_id):
+        super().__init__(parent)
+        
+        self.app = app
+        self.parent = parent
+        self.llamada_id = llamada_id
+        
+        self.setup_window()
+        self.create_widgets()
+        self.load_data()
+        
+    def setup_window(self):
+        """Configura la ventana"""
+        self.title("Detalles de Llamada")
+        self.geometry("800x600")
+        self.resizable(True, True)
+        
+        # Hacer modal
+        self.transient(self.parent)
+        self.grab_set()
+        
+        # Configurar grid
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        
+    def create_widgets(self):
+        """Crea la interfaz"""
+        
+        # Frame scrollable principal
+        main_scroll = ctk.CTkScrollableFrame(self)
+        main_scroll.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+        main_scroll.grid_columnconfigure(0, weight=1)
+        
+        # Título
+        self.title_label = ctk.CTkLabel(
+            main_scroll,
+            text="Detalles de Llamada",
+            font=ctk.CTkFont(size=20, weight="bold")
+        )
+        self.title_label.grid(row=0, column=0, pady=(0, 20))
+        
+        # Frame de información general
+        self.info_frame = ctk.CTkFrame(main_scroll)
+        self.info_frame.grid(row=1, column=0, pady=(0, 20), sticky="ew")
+        
+        # Frame de triaje
+        self.triaje_frame = ctk.CTkFrame(main_scroll)
+        self.triaje_frame.grid(row=2, column=0, pady=(0, 20), sticky="ew")
+        
+        # Frame de novedades
+        self.novedades_frame = ctk.CTkFrame(main_scroll)
+        self.novedades_frame.grid(row=3, column=0, pady=(0, 20), sticky="ew")
+        
+        # Botón cerrar
+        close_btn = ctk.CTkButton(
+            main_scroll,
+            text="❌ Cerrar",
+            command=self.destroy,
+            fg_color=("gray", "darkgray")
+        )
+        close_btn.grid(row=4, column=0, pady=20)
+        
+    def load_data(self):
+        """Carga los datos de la llamada"""
+        try:
+            # Obtener datos básicos de la llamada
+            llamada = self.app.db_manager.fetch_one("""
+                SELECT l.numero_llamada, l.fecha_hora, te.nombre as tipo_emergencia,
+                       l.direccion_completa, l.descripcion_inicial, l.estado,
+                       l.receptor_destino, l.fecha_despacho, l.fecha_cierre,
+                       l.observaciones_cierre, v.nombre, v.apellido, v.telefono,
+                       v.dni, u.nombre_completo as operador
+                FROM llamadas l
+                JOIN tipos_emergencia te ON l.tipo_emergencia_id = te.id
+                LEFT JOIN vecinos v ON l.vecino_id = v.id
+                LEFT JOIN usuarios u ON l.usuario_id = u.id
+                WHERE l.id = ?
+            """, (self.llamada_id,))
+            
+            if not llamada:
+                messagebox.showerror("Error", "Llamada no encontrada")
+                self.destroy()
+                return
+            
+            # Llenar información general
+            self.fill_general_info(llamada)
+            
+            # Cargar datos de triaje
+            self.load_triaje_data()
+            
+            # Cargar novedades
+            self.load_novedades()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error cargando datos: {e}")
+    
+    def fill_general_info(self, llamada):
+        """Llena la información general"""
+        self.title_label.configure(text=f"Detalles de Llamada - {llamada[0]}")
+        
+        # Crear labels de información
+        info_items = [
+            ("Número de Llamada:", llamada[0]),
+            ("Fecha y Hora:", datetime.strptime(llamada[1], '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M:%S')),
+            ("Tipo de Emergencia:", llamada[2]),
+            ("Estado:", llamada[5].title()),
+            ("Dirección:", llamada[3]),
+            ("Descripción Inicial:", llamada[4] or "No especificada"),
+            ("Solicitante:", f"{llamada[10] or ''} {llamada[11] or ''}".strip() or "No especificado"),
+            ("DNI:", llamada[13] or "No especificado"),
+            ("Teléfono:", llamada[12] or "No especificado"),
+            ("Operador:", llamada[14] or "No especificado"),
+            ("Receptor Destino:", llamada[6] or "No especificado"),
+        ]
+        
+        if llamada[7]:  # fecha_despacho
+            fecha_despacho = datetime.strptime(llamada[7], '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M:%S')
+            info_items.append(("Fecha Despacho:", fecha_despacho))
+        
+        if llamada[8]:  # fecha_cierre
+            fecha_cierre = datetime.strptime(llamada[8], '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M:%S')
+            info_items.append(("Fecha Cierre:", fecha_cierre))
+        
+        if llamada[9]:  # observaciones_cierre
+            info_items.append(("Observaciones Cierre:", llamada[9]))
+        
+        # Crear widgets
+        row = 0
+        for label_text, value in info_items:
+            label = ctk.CTkLabel(self.info_frame, text=label_text, font=ctk.CTkFont(weight="bold"))
+            label.grid(row=row, column=0, padx=(15, 10), pady=5, sticky="w")
+            
+            value_label = ctk.CTkLabel(self.info_frame, text=str(value))
+            value_label.grid(row=row, column=1, padx=(0, 15), pady=5, sticky="w")
+            
+            row += 1
+        
+        self.info_frame.grid_columnconfigure(1, weight=1)
+    
+    def load_triaje_data(self):
+        """Carga datos del triaje si existe"""
+        # Buscar en todas las tablas de triaje
+        triaje_data = None
+        
+        # Triaje médico
+        triaje_medico = self.app.db_manager.fetch_one("""
+            SELECT 'Médico' as tipo, nivel_prioridad, observaciones
+            FROM triaje_medico WHERE llamada_id = ?
+        """, (self.llamada_id,))
+        
+        if triaje_medico:
+            triaje_data = triaje_medico
+        
+        # Si no hay médico, buscar otros tipos...
+        if not triaje_data:
+            for tabla, tipo in [
+                ('triaje_bomberos', 'Bomberos'),
+                ('triaje_defensa_civil', 'Defensa Civil'),
+                ('triaje_seguridad', 'Seguridad')
+            ]:
+                triaje = self.app.db_manager.fetch_one(f"""
+                    SELECT '{tipo}' as tipo, nivel_prioridad, observaciones
+                    FROM {tabla} WHERE llamada_id = ?
+                """, (self.llamada_id,))
+                
+                if triaje:
+                    triaje_data = triaje
+                    break
+        
+        # Mostrar datos del triaje
+        if triaje_data:
+            title = ctk.CTkLabel(
+                self.triaje_frame,
+                text=f"🩺 DATOS DEL TRIAJE ({triaje_data[0]})",
+                font=ctk.CTkFont(size=14, weight="bold")
+            )
+            title.grid(row=0, column=0, padx=15, pady=(15, 10), sticky="w")
+            
+            prioridad_text = {1: "🔴 Crítica", 2: "🟠 Alta", 3: "🟡 Media", 4: "🟢 Baja", 5: "⚪ Sin triaje"}
+            prioridad = prioridad_text.get(triaje_data[1], "⚪ Sin especificar")
+            
+            prioridad_label = ctk.CTkLabel(self.triaje_frame, text=f"Prioridad: {prioridad}")
+            prioridad_label.grid(row=1, column=0, padx=15, pady=5, sticky="w")
+            
+            if triaje_data[2]:
+                obs_label = ctk.CTkLabel(self.triaje_frame, text="Observaciones:", font=ctk.CTkFont(weight="bold"))
+                obs_label.grid(row=2, column=0, padx=15, pady=(10, 5), sticky="w")
+                
+                obs_text = ctk.CTkTextbox(self.triaje_frame, height=60)
+                obs_text.insert("1.0", triaje_data[2])
+                obs_text.configure(state="disabled")
+                obs_text.grid(row=3, column=0, padx=15, pady=(0, 15), sticky="ew")
+                
+                self.triaje_frame.grid_columnconfigure(0, weight=1)
+        else:
+            no_triaje_label = ctk.CTkLabel(
+                self.triaje_frame,
+                text="No se realizó triaje para esta llamada",
+                font=ctk.CTkFont(style="italic")
+            )
+            no_triaje_label.grid(row=0, column=0, padx=15, pady=15)
+    
+    def load_novedades(self):
+        """Carga las novedades de la llamada"""
+        novedades = self.app.db_manager.fetch_all("""
+            SELECT n.fecha_hora, n.tipo_novedad, n.descripcion, u.nombre_completo
+            FROM novedades n
+            LEFT JOIN usuarios u ON n.usuario_id = u.id
+            WHERE n.llamada_id = ?
+            ORDER BY n.fecha_hora DESC
+        """, (self.llamada_id,))
+        
+        title = ctk.CTkLabel(
+            self.novedades_frame,
+            text="📝 NOVEDADES Y SEGUIMIENTO",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        title.grid(row=0, column=0, padx=15, pady=(15, 10), sticky="w")
+        
+        if novedades:
+            # Crear textbox para mostrar novedades
+            novedades_text = ctk.CTkTextbox(self.novedades_frame, height=150)
+            
+            contenido = ""
+            for novedad in novedades:
+                fecha_hora = datetime.strptime(novedad[0], '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M:%S')
+                contenido += f"🕐 {fecha_hora} - {novedad[1]}\n"
+                contenido += f"👤 {novedad[3] or 'Usuario desconocido'}\n"
+                contenido += f"📝 {novedad[2]}\n"
+                contenido += "-" * 50 + "\n\n"
+            
+            novedades_text.insert("1.0", contenido)
+            novedades_text.configure(state="disabled")
+            novedades_text.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="ew")
+            
+            self.novedades_frame.grid_columnconfigure(0, weight=1)
+        else:
+            no_novedades_label = ctk.CTkLabel(
+                self.novedades_frame,
+                text="No hay novedades registradas para esta llamada",
+                font=ctk.CTkFont(style="italic")
+            )
+            no_novedades_label.grid(row=1, column=0, padx=15, pady=15)

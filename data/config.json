@@ -1,0 +1,84 @@
+{
+    "sistema": {
+        "nombre": "Sistema de Emergencias Villa Allende",
+        "version": "1.0.0",
+        "fecha_instalacion": "2025-07-05T19:26:47.679318",
+        "organizacion": "Municipalidad de Villa Allende",
+        "direccion": "Villa Allende, Córdoba, Argentina",
+        "telefono_central": "3543-498000"
+    },
+    "base_datos": {
+        "path": "data/emergencias.db",
+        "backup_automatico": true,
+        "backup_intervalo_horas": 24,
+        "backup_directorio": "backups/"
+    },
+    "whatsapp": {
+        "api_url": "https://bot.nubelix.com/wabot/50aa4db2d5d872b6878edfe7755f194d",
+        "token": "e0072338d75f46d992f0430ffea2d154",
+        "timeout_segundos": 15,
+        "reintentos": 3
+    },
+    "mapas": {
+        "proveedor": "google",
+        "zoom_defecto": 15,
+        "centro_lat": -31.3298,
+        "centro_lng": -64.2959,
+        "url_base": "https://www.google.com/maps/search/"
+    },
+    "interfaz": {
+        "tema": "system",
+        "color_tema": "blue",
+        "idioma": "es",
+        "formato_fecha": "DD/MM/YYYY",
+        "formato_hora": "HH:MM:SS"
+    },
+    "seguridad": {
+        "timeout_sesion_minutos": 480,
+        "intentos_login_max": 5,
+        "bloqueo_tiempo_minutos": 30,
+        "log_acciones": true
+    },
+    "emergencias": {
+        "numero_llamada_prefijo": "EM",
+        "prioridades": {
+            "1": {
+                "nombre": "Crítica",
+                "color": "red",
+                "tiempo_respuesta": 5
+            },
+            "2": {
+                "nombre": "Alta",
+                "color": "orange",
+                "tiempo_respuesta": 15
+            },
+            "3": {
+                "nombre": "Media",
+                "color": "yellow",
+                "tiempo_respuesta": 30
+            },
+            "4": {
+                "nombre": "Baja",
+                "color": "green",
+                "tiempo_respuesta": 60
+            },
+            "5": {
+                "nombre": "Sin triaje",
+                "color": "gray",
+                "tiempo_respuesta": 120
+            }
+        }
+    },
+    "reportes": {
+        "directorio": "exports/",
+        "formato_defecto": "xlsx",
+        "incluir_logo": true,
+        "mostrar_pie_pagina": true
+    },
+    "logs": {
+        "nivel": "INFO",
+        "directorio": "logs/",
+        "rotacion_dias": 30,
+        "archivo_max_mb": 10
+    }
+}

@@ -1,0 +1,440 @@
+# 🚀 Guía de Despliegue - Sistema de Emergencias Villa Allende
+
+## 📋 Lista de Verificación Pre-Despliegue
+
+### ✅ Requisitos del Sistema
+
+**Hardware Mínimo:**
+- ✅ Procesador: Intel Core i3 o AMD Ryzen 3 (2.0 GHz+)
+- ✅ RAM: 4 GB mínimo (8 GB recomendado)
+- ✅ Almacenamiento: 2 GB libres (SSD recomendado)
+- ✅ Pantalla: 1366x768 mínimo (1920x1080 recomendado)
+
+**Software Base:**
+- ✅ Windows 10/11 (64-bit) o Linux Ubuntu 20.04+
+- ✅ Python 3.8+ (si instalación desde código fuente)
+- ✅ Conexión a Internet estable
+- ✅ Navegador web moderno (para mapas)
+
+**Conectividad:**
+- ✅ Internet para API WhatsApp
+- ✅ Acceso a Google Maps
+- ✅ Puertos de red: 80, 443 (salida)
+
+### ✅ Configuración Previa
+
+**Datos Organizacionales:**
+- ✅ Números de teléfono WhatsApp de cada servicio
+- ✅ Lista de barrios actualizada
+- ✅ Credenciales API WhatsApp (Nubelix)
+- ✅ Lista de móviles disponibles
+- ✅ Personal operativo y sus roles
+
+**Configuración de Red:**
+- ✅ Firewall configurado para permitir conexiones salientes
+- ✅ Proxy corporativo configurado (si aplica)
+- ✅ DNS funcionando correctamente
+
+## 🎯 Métodos de Despliegue
+
+### Método 1: Instalación Ejecutable (Recomendado para Producción)
+
+```bash
+# 1. Descargar el paquete de instalación
+SistemaEmergenciasVillaAllende_v1.0.0_YYYYMMDD.zip
+
+# 2. Extraer en directorio final
+# Ejemplo: C:\SistemaEmergencias\ (Windows)
+# Ejemplo: /opt/emergencias/ (Linux)
+
+# 3. Ejecutar directamente
+SistemaEmergenciasVillaAllende.exe
+
+# 4. Configurar en primer uso
+# - Usuario admin inicial
+# - Números WhatsApp
+# - Configuración básica
+```
+
+### Método 2: Instalación desde Código Fuente (Desarrollo/Personalización)
+
+```bash
+# 1. Clonar o descargar código fuente
+git clone [repositorio] sistema-emergencias
+cd sistema-emergencias
+
+# 2. Ejecutar instalador automático
+python installer.py
+
+# 3. Seguir instrucciones del instalador
+# - Instalación de dependencias
+# - Configuración inicial
+# - Datos base
+
+# 4. Iniciar sistema
+python main.py
+# o usar script generado:
+# Windows: iniciar_sistema.bat
+# Linux: ./iniciar_sistema.sh
+```
+
+### Método 3: Instalación Manual (Control Total)
+
+```bash
+# 1. Crear entorno virtual
+python -m venv venv
+
+# 2. Activar entorno
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+# 3. Instalar dependencias básicas
+pip install customtkinter requests pandas openpyxl
+
+# 4. Crear estructura de directorios
+mkdir data logs exports backups temp
+
+# 5. Configurar base de datos
+python -c "from database.db_manager import DatabaseManager; DatabaseManager()"
+
+# 6. Ejecutar sistema
+python main.py
+```
+
+## ⚙️ Configuración Post-Instalación
+
+### 1. Configuración Inicial del Sistema
+
+```bash
+# Primer login:
+Usuario: admin
+Contraseña: admin123 (cambiar inmediatamente)
+```
+
+**Pasos obligatorios:**
+1. **Cambiar contraseña admin** (Gestión de Usuarios → Editar admin)
+2. **Configurar información organizacional** (Configuración → Sistema)
+3. **Configurar números WhatsApp** (Configuración → WhatsApp)
+4. **Crear usuarios operativos** (Gestión de Usuarios → Nuevo)
+5. **Configurar móviles** (Gestión de Móviles → Nuevo)
+
+### 2. Configuración WhatsApp
+
+**API Nubelix - Configuración:**
+```
+URL: https://bot.nubelix.com/wabot/50aa4db2d5d872b6878edfe7755f194d
+Token: e0072338d75f46d992f0430ffea2d154
+```
+
+**Números requeridos:**
+- 📱 **DEMVA**: [número de DEMVA con código país]
+- 📱 **CEC**: [número de CEC con código país]
+- 📱 **Bomberos**: [número de Bomberos con código país]
+- 📱 **Defensa Civil**: [número de Defensa Civil con código país]
+- 📱 **Seguridad**: [número de Seguridad con código país]
+
+**Formato de números:**
+```
+Formato correcto: 5493516789012 (código país + área + número)
+Ejemplo Villa Allende: 549351XXXXXXX
+```
+
+### 3. Configuración de Móviles
+
+**Tipos disponibles:**
+- 🚑 **Ambulancia**: Para emergencias médicas
+- 🚔 **Patrulla**: Para seguridad ciudadana  
+- 🚒 **Rescate**: Para defensa civil y rescates
+
+**Datos necesarios por móvil:**
+- Número identificatorio (ej: AMB001, PAT001)
+- Tipo de móvil
+- Patente del vehículo
+- Modelo y año
+- Estado inicial (disponible)
+- Ubicación base
+
+### 4. Gestión de Usuarios
+
+**Roles del sistema:**
+- 👑 **Administrador**: Acceso total, gestión de usuarios
+- 👨‍💼 **Supervisor**: Gestión operativa, reportes, configuración
+- 👨‍💻 **Operador**: Registro de llamadas, triaje, consultas
+
+**Datos requeridos por usuario:**
+- Nombre de usuario único
+- Contraseña segura (mín. 6 caracteres)
+- Nombre completo
+- Rol asignado
+- Teléfono y email (opcional)
+
+## 🔒 Configuración de Seguridad
+
+### Seguridad de Acceso
+
+```bash
+# 1. Configuración de sesiones (Configuración → Seguridad)
+Timeout de sesión: 480 minutos (8 horas) recomendado
+Máx. intentos de login: 5
+Tiempo de bloqueo: 30 minutos
+
+# 2. Políticas de contraseñas
+Mínimo 6 caracteres
+Cambio obligatorio en primer acceso
+No reutilizar contraseñas anteriores
+```
+
+### Backup y Respaldo
+
+```bash
+# Configuración de backup automático
+Intervalo: 24 horas (recomendado)
+Directorio: ./backups/ (o ruta externa)
+Retención: 30 días mínimo
+
+# Backup manual
+Configuración → Backup → "Backup Ahora"
+```
+
+### Logs del Sistema
+
+```bash
+# Configuración de logging
+Nivel: INFO (producción) / DEBUG (desarrollo)
+Retención: 30 días
+Tamaño máx. archivo: 10 MB
+Rotación: Automática
+
+# Ubicación de logs
+./logs/app_YYYYMMDD.log      # Log general
+./logs/errors_YYYYMMDD.log   # Solo errores
+./logs/emergency_YYYYMMDD.log # Emergencias específicas
+```
+
+## 📊 Configuración de Reportes
+
+### Directorio de Exportación
+
+```bash
+# Configurar directorio de reportes
+Ruta: ./exports/ (o ruta externa compartida)
+Formato por defecto: Excel (.xlsx)
+Incluir logo: Sí (configurar logo organizacional)
+Pie de página: Sí
+```
+
+### Tipos de Reportes Disponibles
+
+- 📅 **Diario**: Actividad del día actual
+- 📊 **Semanal**: Resumen últimos 7 días
+- 📈 **Mensual**: Estadísticas del mes
+- 🚨 **Por Emergencia**: Análisis por tipo
+- 👥 **Usuarios**: Actividad del personal
+- 🚗 **Móviles**: Uso y disponibilidad
+- 🔧 **Personalizado**: Fechas y filtros específicos
+
+## 🌐 Configuración de Red
+
+### Firewall y Puertos
+
+```bash
+# Puertos salientes requeridos:
+80/TCP   - HTTP (Google Maps, actualizaciones)
+443/TCP  - HTTPS (WhatsApp API, mapas seguros)
+
+# Dominios a permitir:
+*.google.com           # Google Maps
+bot.nubelix.com        # WhatsApp API
+maps.googleapis.com    # API de mapas
+```
+
+### Proxy Corporativo
+
+```bash
+# Si hay proxy corporativo, configurar en:
+# Configuración → Red → Proxy (función futura)
+# Por ahora: configurar variables de entorno del sistema
+
+export HTTP_PROXY=http://proxy.empresa.com:8080
+export HTTPS_PROXY=http://proxy.empresa.com:8080
+```
+
+## 🔄 Proceso de Actualización
+
+### Actualización del Sistema
+
+```bash
+# 1. Crear backup completo
+Configuración → Backup → "Backup Ahora"
+
+# 2. Descargar nueva versión
+[Nueva versión del sistema]
+
+# 3. Parar sistema actual
+Cerrar todas las ventanas del sistema
+
+# 4. Reemplazar archivos
+Mantener directorios: data/, logs/, exports/, backups/
+Reemplazar: main.py, database/, gui/, utils/
+
+# 5. Ejecutar migración (si necesaria)
+python migrate.py
+
+# 6. Iniciar nueva versión
+python main.py
+```
+
+### Migración de Datos
+
+```bash
+# En caso de cambios en base de datos
+# El sistema detecta automáticamente la versión
+# y ejecuta migraciones necesarias
+```
+
+## 🐛 Solución de Problemas de Despliegue
+
+### Problemas Comunes
+
+**Error: "ModuleNotFoundError: No module named 'customtkinter'"**
+```bash
+# Solución:
+pip install customtkinter --upgrade
+```
+
+**Error: "sqlite3.OperationalError: database is locked"**
+```bash
+# Solución:
+1. Cerrar todas las instancias del programa
+2. Verificar que no hay procesos Python ejecutándose
+3. Reiniciar si es necesario
+4. Verificar permisos de escritura en directorio data/
+```
+
+**Error: "WhatsApp connection failed"**
+```bash
+# Verificaciones:
+1. Conexión a internet activa
+2. Firewall permite conexiones salientes puerto 443
+3. Credenciales API correctas
+4. Formato de números correcto (con código país)
+```
+
+**Error: "Permission denied" en Linux**
+```bash
+# Solución:
+sudo chmod -R 755 /ruta/al/sistema/
+sudo chown -R usuario:grupo /ruta/al/sistema/
+```
+
+### Logs de Diagnóstico
+
+```bash
+# Revisar logs para diagnóstico
+./logs/app_YYYYMMDD.log      # Actividad general
+./logs/errors_YYYYMMDD.log   # Errores del sistema
+
+# Buscar errores específicos
+grep ERROR ./logs/*.log
+grep CRITICAL ./logs/*.log
+```
+
+## 📞 Soporte Post-Despliegue
+
+### Contactos de Soporte
+
+**Soporte Técnico:**
+- 📧 Email: soporte@emergenciasvallende.gov.ar
+- 📞 Teléfono: 3543-498000 (horario de oficina)
+- 💬 WhatsApp: [número de soporte técnico]
+
+**Escalación:**
+- 🔧 Nivel 1: Operadores locales
+- 🔧 Nivel 2: Supervisores del sistema  
+- 🔧 Nivel 3: Desarrolladores del sistema
+
+### Documentación Adicional
+
+- 📖 **Manual de Usuario**: ./docs/manual_usuario.pdf
+- 📖 **Manual Técnico**: ./docs/manual_tecnico.pdf
+- 🎥 **Videos Tutoriales**: [enlaces a videos]
+- ❓ **FAQ**: ./docs/faq.md
+
+### Capacitación Recomendada
+
+**Personal Operativo (2-4 horas):**
+- Navegación del sistema
+- Registro de llamadas
+- Proceso de triaje
+- Gestión básica de móviles
+
+**Supervisores (4-6 horas):**
+- Gestión completa del sistema
+- Configuración avanzada
+- Reportes y estadísticas
+- Solución de problemas básicos
+
+**Administradores (6-8 horas):**
+- Configuración completa
+- Gestión de usuarios
+- Backup y restauración
+- Mantenimiento del sistema
+
+## ✅ Checklist de Despliegue Completo
+
+### Pre-Despliegue
+- [ ] Hardware verificado y compatible
+- [ ] Software base instalado
+- [ ] Conectividad de red confirmada
+- [ ] Credenciales WhatsApp obtenidas
+- [ ] Datos organizacionales recopilados
+
+### Instalación
+- [ ] Sistema instalado correctamente
+- [ ] Base de datos inicializada
+- [ ] Estructura de directorios creada
+- [ ] Dependencias instaladas
+
+### Configuración
+- [ ] Usuario admin configurado
+- [ ] Información organizacional ingresada
+- [ ] Números WhatsApp configurados y probados
+- [ ] Usuarios operativos creados
+- [ ] Móviles registrados en el sistema
+- [ ] Barrios actualizados
+
+### Pruebas
+- [ ] Login de todos los usuarios verificado
+- [ ] Registro de llamada de prueba exitoso
+- [ ] Triaje de cada tipo funcionando
+- [ ] Envío WhatsApp de prueba exitoso
+- [ ] Backup manual realizado
+- [ ] Reportes generados correctamente
+
+### Capacitación
+- [ ] Personal operativo capacitado
+- [ ] Supervisores entrenados
+- [ ] Administradores formados
+- [ ] Documentación entregada
+
+### Puesta en Producción
+- [ ] Sistema en producción funcionando
+- [ ] Monitoreo activo
+- [ ] Soporte técnico disponible
+- [ ] Plan de contingencia definido
+
+---
+
+## 🎉 ¡Despliegue Completado!
+
+Una vez completado este checklist, el Sistema de Emergencias Villa Allende estará completamente operativo y listo para salvar vidas en la comunidad.
+
+**¡Que tengan un despliegue exitoso! 🚨👨‍⚕️👩‍🚒👮‍♂️**
+
+---
+
+*Documento actualizado: Diciembre 2024*  
+*Versión del sistema: 1.0.0*  
+*Contacto: soporte@emergenciasvallende.gov.ar*

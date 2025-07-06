@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""
+Script para corregir errores en el código CustomTkinter
+Busca y reemplaza los errores comunes automáticamente
+"""
+
+import os
+import re
+import shutil
+from datetime import datetime
+
+class FixCustomTkinterErrors:
+    def __init__(self):
+        self.fixes_applied = 0
+        self.files_processed = 0
+        
+    def backup_file(self, file_path):
+        """Crea backup del archivo antes de modificarlo"""
+        backup_path = f"{file_path}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        shutil.copy2(file_path, backup_path)
+        return backup_path
+    
+    def fix_ctkfont_style(self, content):
+        """Corrige el error de CTkFont con style='italic'"""
+        # Buscar y reemplazar CTkFont con style
+        patterns = [
+            # CTkFont(size=12, style="italic") -> CTkFont(size=12)
+            (r'CTkFont\(([^)]*?),\s*style=["\'][^"\']*["\']([^)]*?)\)', r'CTkFont(\1\2)'),
+            # CTkFont(style="italic", size=12) -> CTkFont(size=12)
+            (r'CTkFont\(style=["\'][^"\']*["\'],\s*([^)]*?)\)', r'CTkFont(\1)'),
+            # CTkFont(style="italic") -> CTkFont()
+            (r'CTkFont\(style=["\'][^"\']*["\']\)', r'CTkFont()'),
+        ]
+        
+        original_content = content
+        for pattern, replacement in patterns:
+            content = re.sub(pattern, replacement, content)
+        
+        if content != original_content:
+            self.fixes_applied += 1
+            print("  ✅ Corregido error CTkFont style")
+            
+        return content
+    
+    def fix_sqlite_lastrowid(self, content):
+        """Corrige el error de SQLite lastrowid"""
+        # Reemplazar connection.lastrowid por cursor.lastrowid
+        original_content = content
+        
+        # Buscar patrones donde se usa self.connection.lastrowid
+        patterns = [
+            (r'self\.connection\.lastrowid', 'cursor.lastrowid'),
+            (r'connection\.lastrowid', 'cursor.lastrowid'),
+            (r'conn\.lastrowid', 'cursor.lastrowid'),
+        ]
+        
+        for pattern, replacement in patterns:
+            if re.search(pattern, content):
+                content = re.sub(pattern, replacement, content)
+                self.fixes_applied += 1
+                print("  ✅ Corregido error SQLite lastrowid")
+        
+        return content
+    
+    def fix_database_manager(self, content):
+        """Corrige específicamente el DatabaseManager"""
+        fixes = []
+        
+        # Corregir get_last_insert_id
+        if 'def get_last_insert_id(self):' in content:
+            old_method = r'def get_last_insert_id\(self\):\s*"""[^"]*"""\s*return self\.connection\.lastrowid'
+            new_method = '''def get_last_insert_id(self):
+        """Retorna el ID del último registro insertado"""
+        cursor = self.connection.cursor()
+        return cursor.lastrowid'''
+            
+            content = re.sub(old_method, new_method, content, flags=re.DOTALL)
+            fixes.append("get_last_insert_id method")
+        
+        # Agregar método para obtener cursor si no existe
+        if 'def execute_query(' in content and 'cursor = self.connection.cursor()' not in content:
+            # Buscar el método execute_query y asegurar que use cursor
+            execute_query_pattern = r'(def execute_query\(self, query, params=None\):.*?try:)(.*?)(if params:.*?cursor\.execute\(query\).*?self\.connection\.commit\(\))'
+            
+            def replace_execute_query(match):
+                start = match.group(1)
+                middle_content = match.group(2)
+                end = match.group(3)
+                
+                if 'cursor = self.connection.cursor()' not in middle_content:
+                    middle_content = '\n            cursor = self.connection.cursor()\n' + middle_content
+                
+                return start + middle_content + end
+            
+            content = re.sub(execute_query_pattern, replace_execute_query, content, flags=re.DOTALL)
+            fixes.append("execute_query cursor")
+        
+        if fixes:
+            self.fixes_applied += len(fixes)
+            print(f"  ✅ Corregido DatabaseManager: {', '.join(fixes)}")
+        
+        return content
+    
+    def process_file(self, file_path):
+        """Procesa un archivo aplicando todas las correcciones"""
+        print(f"📝 Procesando: {file_path}")
+        
+        try:
+            # Leer archivo
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            original_content = content
+            
+            # Aplicar correcciones
+            content = self.fix_ctkfont_style(content)
+            content = self.fix_sqlite_lastrowid(content)
+            
+            if 'db_manager.py' in file_path:
+                content = self.fix_database_manager(content)
+            
+            # Si hubo cambios, guardar archivo
+            if content != original_content:
+                # Crear backup
+                backup_path = self.backup_file(file_path)
+                print(f"  💾 Backup creado: {backup_path}")
+                
+                # Guardar archivo corregido
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                print(f"  ✅ Archivo corregido: {file_path}")
+            else:
+                print(f"  ℹ️  No necesita correcciones: {file_path}")
+            
+            self.files_processed += 1
+            
+        except Exception as e:
+            print(f"  ❌ Error procesando {file_path}: {e}")
+    
+    def fix_all_files(self):
+        """Corrige todos los archivos Python del proyecto"""
+        print("🔧 INICIANDO CORRECCIÓN DE ERRORES")
+        print("=" * 50)
+        
+        # Buscar todos los archivos .py
+        python_files = []
+        
+        for root, dirs, files in os.walk('.'):
+            for file in files:
+                if file.endswith('.py'):
+                    file_path = os.path.join(root, file)
+                    python_files.append(file_path)
+        
+        print(f"📁 Encontrados {len(python_files)} archivos Python")
+        print()
+        
+        # Procesar cada archivo
+        for file_path in python_files:
+            self.process_file(file_path)
+        
+        print()
+        print("=" * 50)
+        print(f"✅ CORRECCIÓN COMPLETADA")
+        print(f"📁 Archivos procesados: {self.files_processed}")
+        print(f"🔧 Correcciones aplicadas: {self.fixes_applied}")
+        
+        if self.fixes_applied > 0:
+            print()
+            print("⚠️  IMPORTANTE:")
+            print("- Se crearon backups de los archivos modificados")
+            print("- Prueba el sistema para verificar que funcione correctamente")
+            print("- Si hay problemas, puedes restaurar desde los backups")
+
+def main():
+    """Función principal"""
+    fixer = FixCustomTkinterErrors()
+    
+    print("Este script corregirá automáticamente los errores de CustomTkinter y SQLite")
+    response = input("¿Continuar? (s/n): ").strip().lower()
+    
+    if response in ['s', 'si', 'y', 'yes']:
+        fixer.fix_all_files()
+    else:
+        print("Corrección cancelada")
+
+if __name__ == "__main__":
+    main()
